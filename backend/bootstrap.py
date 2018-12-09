@@ -19,7 +19,7 @@ class Payment:
         self.payment_method = attributes.get('payment_method', None)
 
     def pay(self, paid_at=time.time()):
-        self.amount = self.order.total_amount
+        self.amount = self.order.total_amount()
         self.authorization_number = int(time.time())
         attributes = dict(
             billing_address=self.order.address,
@@ -28,6 +28,7 @@ class Payment:
         )
         self.invoice = Invoice(attributes=attributes)
         self.paid_at = paid_at
+        self.order.payment = self
         self.order.close(self.paid_at)
 
     def is_paid(self):
@@ -71,7 +72,7 @@ class Order:
     def total_amount(self):
         total = 0
         for item in self.items:
-            total += item.total
+            total += item.total()
 
         return total
 
@@ -79,7 +80,6 @@ class Order:
         self.closed_at = closed_at
 
     def send_product(self):
-        
         result = OrderedDict()
         for item in self.items:
             product_name = item.product.name
@@ -143,3 +143,19 @@ class Membership:
     
     def __init__(self, customer):
         self.customer = customer
+
+    def send_email_welcome(self):
+        return "%s bem vindo a assinatura, qualquer duvida estamos a disposição" % (
+            self.customer.name)
+            
+class Voucher:
+    payment = None
+    customer = None
+    
+    def __init__(self, attributes):
+        self.payment = attributes.get('payment', None)
+        self.customer = attributes.get('customer', None)
+
+    def total(self):
+        return 10
+        
