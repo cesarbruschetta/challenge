@@ -1,4 +1,6 @@
 import time
+from collections import OrderedDict
+from backend.utils import import_class
 
 
 class Payment:
@@ -49,6 +51,13 @@ class Order:
     payment = None
     address = None
     closed_at = None
+    
+    methods_shipping = {
+        "physical": 'backend.shipping.PhysicalShipping',
+        "book": 'backend.shipping.BookShipping', 
+        "digital": 'backend.shipping.DigitalShipping',
+        "membership": 'backend.shipping.MembershipShipping'
+    }
 
     def __init__(self, customer, attributes={}):
         self.customer = customer
@@ -61,7 +70,7 @@ class Order:
 
     def total_amount(self):
         total = 0
-        for item in items:
+        for item in self.items:
             total += item.total
 
         return total
@@ -69,8 +78,24 @@ class Order:
     def close(self, closed_at=time.time()):
         self.closed_at = closed_at
 
-    # remember: you can create new methods inside those classes to help you create a better design
-
+    def send_product(self):
+        
+        result = OrderedDict()
+        for item in self.items:
+            product_name = item.product.name
+            product_type = item.product.type
+        
+            factory_class = import_class(
+                self.methods_shipping.get(product_type, 'shipping.BaseShipping')
+            )    
+            obj_class = factory_class(attributes=dict(
+                shipping_address=self.address,
+                order=self
+            ))
+            result[product_name] = obj_class.run()
+        
+        return result
+        
 
 class OrderItem:
     order = None
@@ -109,28 +134,12 @@ class CreditCard:
 
 
 class Customer:
-    # you can customize this class by yourself
-    pass
-
+    name = "Fulano"
+    email = "fulano@gmail.com"
+    
 
 class Membership:
-    # you can customize this class by yourself
-    pass
-
-
-# Book Example (build new payments if you need to properly test it)
-foolano = Customer()
-book = Product(name='Awesome book', type='book')
-book_order = Order(foolano)
-book_order.add_product(book)
-
-attributes = dict(
-    order=book_order,
-    payment_method=CreditCard.fetch_by_hashed('43567890-987654367')
-)
-payment_book = Payment(attributes=attributes)
-payment_book.pay()
-print(payment_book.is_paid())  # < true
-print(payment_book.order.items[0].product.type)
-
-# now, how to deal with shipping rules then?
+    customer = None
+    
+    def __init__(self, customer):
+        self.customer = customer
